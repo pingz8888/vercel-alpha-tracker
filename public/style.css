@@ -1,0 +1,13 @@
+/* Custom iOS Glassmorphism and OLED utilities */
+.glass-card {
+    background: rgba(20, 20, 20, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
