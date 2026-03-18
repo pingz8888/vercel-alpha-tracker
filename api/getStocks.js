@@ -8,7 +8,6 @@ export default async function handler(req, res) {
         const response = await fetch(`https://query1.finance.yahoo.com/v7/finance/spark?symbols=${ticker}`);
         const data = await response.json();
         
-        // Edge caching to protect Hobby tier limits
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
         res.status(200).json(data);
     } catch (error) {
