@@ -11,13 +11,12 @@ export default async function handler(req, res) {
 
     try {
         const { setupData } = req.body;
-        
-        const systemPrompt = "Analyze this setup to find alpha. Output strictly 2 brief bullet points. Extremely concise. Actionable only. Zero filler.";
+        const systemPrompt = "Provide keep/sell analysis. Output exactly 1 short sentence for the verdict, and 1 short sentence for the rationale. Be highly direct. No filler words.";
 
         const result = await model.generateContent(`${systemPrompt}\n\nData: ${JSON.stringify(setupData)}`);
-        res.status(200).json({ recommendations: result.response.text() });
+        res.status(200).json({ analysis: result.response.text() });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Recommendation generation timed out or failed.' });
+        res.status(500).json({ error: 'Insight generation timed out or failed.' });
     }
 }
