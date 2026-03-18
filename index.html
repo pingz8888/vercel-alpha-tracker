@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Alpha v3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #000; color: #f8fafc; -webkit-tap-highlight-color: transparent; padding-top: env(safe-area-inset-top); }
+        .ios-glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.3s ease; }
+        .alert-target { border-color: rgba(16, 185, 129, 0.8) !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.1); }
+        .alert-stop { border-color: rgba(244, 63, 94, 0.8) !important; box-shadow: 0 0 15px rgba(244, 63, 94, 0.1); }
+        #auth { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        #splash { position: fixed; inset: 0; background: #000; z-index: 50; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s; }
+        .btn-disabled { opacity: 0.4; pointer-events: none; }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col pb-6 px-4 pt-4">
+
+    <div id="auth">
+        <h2 class="text-xl font-black text-white mb-6 tracking-widest uppercase italic">Alpha Terminal</h2>
+        <input type="password" id="pin" placeholder="Master Key" class="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-blue-600 mb-4">
+        <button onclick="unlock()" class="w-full max-w-xs bg-blue-600 text-white px-5 py-3 rounded-xl font-black uppercase text-xs tracking-widest">Connect</button>
+    </div>
+
+    <div id="splash">
+        <div class="text-blue-500 text-[10px] font-black tracking-[0.3em] uppercase animate-pulse italic">Syncing Vercel Edge...</div>
+    </div>
+
+    <header class="mb-4">
+        <div class="flex justify-between items-end">
+            <h1 class="text-2xl font-black tracking-tighter text-white uppercase italic">Alpha v3</h1>
+            <div id="sync-time" class="text-[9px] font-mono text-slate-600 bg-white/5 px-2 py-1 rounded border border-white/5 uppercase">Ready</div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <input type="text" id="newT" placeholder="TICKER" class="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white uppercase focus:outline-none">
+            <button onclick="add()" class="bg-blue-600 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase">Add</button>
+        </div>
+    </header>
+
+    <section class="flex-1 overflow-y-auto space-y-3 pb-4" id="grid"></section>
+
+    <div class="space-y-3 mt-4">
+        <div id="rec-box" class="ios-glass p-5 rounded-2xl text-[11px] font-mono leading-relaxed hidden border-l-4 border-emerald-500 text-slate-100 shadow-2xl"></div>
+        <button id="hunt-btn" onclick="hunt()" class="ios-glass active:bg-slate-800 w-full py-4 rounded-2xl flex flex-col items-center justify-center">
+            <span class="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Global Alpha Scan</span>
+        </button>
+    </div>
+
+    <script>
+        let watchlist = JSON.parse(localStorage.getItem('alphaList')) || ['SE', '5E2.SI', '558.SI', 'F03.SI', 'D05.SI', 'Z74.SI', 'BN4.SI', 'C38U.SI'];
+        let key = localStorage.getItem('alphaKey');
+        let cache = JSON.parse(localStorage.getItem('alphaCache')) || {};
+
+        function save() { 
+            localStorage.setItem('alphaList', JSON.stringify(watchlist)); 
+            localStorage.setItem('alphaCache', JSON.stringify(cache));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            render();
+            if (key) { document.getElementById('auth').style.display = 'none'; syncPrices(); }
+            else { document.getElementById('splash').style.display = 'none'; }
+        });
+
+        function unlock() {
+            const p = document.getElementById('pin').value;
+            if (p) { key = p; localStorage.setItem('alphaKey', key); document.getElementById('auth').style.display = 'none'; syncPrices(); }
+        }
+
+        function add() {
+            const t = document.getElementById('newT').value.trim().toUpperCase();
+            if (t && !watchlist.includes(t)) { watchlist.push(t); save(); render(); syncPrices(); }
+            document.getElementById('newT').value = '';
+        }
+
+        function remove(t) { watchlist = watchlist.filter(x => x !== t); delete cache[t]; save(); render(); }
+
+        function render() {
+            document.getElementById('grid').innerHTML = watchlist.map(t => `
+                <div class="flex flex-col gap-1">
+                    <div id="card-${t}" class="ios-glass p-4 rounded-xl flex justify-between items-center" onclick="toggleInsight('${t}')">
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-black text-white italic uppercase tracking-tighter">${t}</h3>
+                            <span id="name-${t}" class="text-[9px] font-bold text-slate-500 uppercase mt-[-2px]">${cache[t]?.name || 'Syncing...'}</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-md font-mono font-bold text-emerald-400" id="price-${t}">${cache[t]?.price ? '$'+cache[t].price : '--'}</span>
+                            <button onclick="event.stopPropagation(); remove('${t}')" class="text-slate-800"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="3" stroke-linecap="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div id="ins-${t}" class="mx-2 p-3 bg-white/5 rounded-b-xl text-[11px] text-slate-300 hidden -mt-2 pt-4 transition-all">
+                        <div id="text-${t}">${cache[t]?.insight || 'Tap to analyze setup...'}</div>
+                        <div class="mt-2 flex justify-between items-center border-t border-white/5 pt-2">
+                            <span class="text-[8px] text-slate-600 font-mono uppercase">${cache[t]?.ts ? 'Synced: ' + new Date(cache[t].ts).toLocaleTimeString() : ''}</span>
+                            <button onclick="event.stopPropagation(); getSingleInsight('${t}')" class="text-blue-500 font-black text-[9px] uppercase">Refresh AI</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            watchlist.forEach(t => updateAlertVisuals(t));
+        }
+
+        async function syncPrices() {
+            try {
+                const res = await fetch(`/api/getStocks?symbols=${watchlist.join(',')}`, { headers: { 'x-app-key': key } });
+                const data = await res.json();
+                watchlist.forEach(t => {
+                    if (data[t]) {
+                        if (!cache[t]) cache[t] = {};
+                        cache[t].price = data[t].price;
+                        cache[t].name = data[t].name;
+                        document.getElementById(`price-${t}`).innerText = `$${data[t].price}`;
+                        document.getElementById(`name-${t}`).innerText = data[t].name;
+                        updateAlertVisuals(t);
+                    }
+                });
+                document.getElementById('sync-time').innerText = `Sync: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                save();
+            } catch (e) { console.error("Sync Failed"); }
+            finally { document.getElementById('splash').style.opacity = '0'; setTimeout(() => document.getElementById('splash').style.display = 'none', 500); }
+        }
+
+        function toggleInsight(t) { document.getElementById(`ins-${t}`).classList.toggle('hidden'); }
+
+        async function getSingleInsight(t) {
+            const box = document.getElementById(`text-${t}`);
+            box.innerHTML = '<span class="animate-pulse text-blue-500 font-black">CONSULTING AI...</span>';
+            try {
+                const res = await fetch('/api/getInsights', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'x-app-key': key }, 
+                    body: JSON.stringify({ ticker: t }) 
+                });
+                const data = await res.json();
+                const target = data.insight.match(/Target: (\d+\.?\d*)/)?.[1];
+                const stop = data.insight.match(/Stop: (\d+\.?\d*)/)?.[1];
+                
+                cache[t] = { ...cache[t], insight: data.insight, ts: Date.now(), target: parseFloat(target), stop: parseFloat(stop) };
+                save(); render();
+                document.getElementById(`ins-${t}`).classList.remove('hidden');
+            } catch (e) { box.innerText = "Error: Timeout. Try again."; }
+        }
+
+        function updateAlertVisuals(t) {
+            const card = document.getElementById(`card-${t}`);
+            const item = cache[t];
+            if (!card || !item || !item.price || !item.target) return;
+            const cur = parseFloat(item.price);
+            card.classList.remove('alert-target', 'alert-stop');
+            if (cur >= item.target) card.classList.add('alert-target');
+            else if (cur <= item.stop) card.classList.add('alert-stop');
+        }
+
+        async function hunt() {
+            const btn = document.getElementById('hunt-btn');
+            const box = document.getElementById('rec-box');
+            btn.classList.add('btn-disabled');
+            box.classList.remove('hidden'); box.innerHTML = '<div class="animate-pulse">Scoping Global Alpha...</div>';
+            try {
+                const res = await fetch('/api/getRecommendations', { headers: { 'x-app-key': key } });
+                const data = await res.json();
+                box.innerHTML = data.recommendations.replace(/\n/g, '<br>');
+            } catch (e) { box.innerHTML = "Timeout. Please try again."; }
+            finally { setTimeout(() => btn.classList.remove('btn-disabled'), 20000); }
+        }
+    </script>
+</body>
+</html>
