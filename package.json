@@ -1,12 +1,7 @@
 {
-  "name": "alpha-v4",
-  "version": "1.0.0",
-  "type": "module",
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "name": "vercel-alpha-tracker",
+  "version": "3.0.0",
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
     "nodemailer": "^6.9.13"
   }
 }
