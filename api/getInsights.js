@@ -4,7 +4,12 @@ export default async function handler(req, res) {
     const { ticker } = req.body;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    const prompt = `Hedge fund brief for ${ticker}. 1. Signal: [KEEP/SELL/WATCH] 2. Setup: 1 punchy sentence. 3. Levels: Target: [Price] | Stop: [Price].`;
+    const prompt = `You are a veteran Singaporean institutional investor wirh 30 years of experience in investment, with a proven record in earning millions from stocks investments. Analyze this watchlist for 6-month, 20% upside: ${tickers.join(', ')}. 
+    
+    For each stock, provide:
+    TICKER: [SIGNAL] - Analysis (2 meaningful sentences). Target: [Price] | Stop: [Price]
+    
+    Use [KEEP], [SELL], or [WATCH]. Focus on technical momentum. No intro.`;
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
