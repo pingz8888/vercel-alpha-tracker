@@ -1,34 +1,27 @@
 import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
-    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV !== 'development') {
-        return res.status(401).json({ error: 'Unauthorized cron execution' });
-    }
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const prompt = `Recommend TWO swing trades (US/SGX). Format: [Ticker] | Target: [Price]. 1 sentence setup.`;
 
     try {
-        const briefingText = "Alpha v4 Briefing: Market data pending. Systems online.";
-        
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: briefingText })
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
+        const aiText = (await response.json()).candidates[0].content.parts[0].text;
 
-        const mailTransporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
-        });
+        if (process.env.TELEGRAM_BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: `📈 ALPHA BRIEF:\n\n${aiText}` })
+            });
+        }
 
-        await mailTransporter.sendMail({
-            from: process.env.GMAIL_USER,
-            to: process.env.GMAIL_USER,
-            subject: 'Alpha v4 Terminal - Daily Briefing',
-            text: briefingText
-        });
-
-        res.status(200).json({ success: true, message: 'Briefing dispatched.' });
-    } catch (error) {
-        console.error('Cron failed:', error);
-        res.status(500).json({ error: 'Briefing dispatch failed.' });
-    }
+        if (process.env.EMAIL_USER) {
+            const trans = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
+            await trans.sendMail({ from: '"Alpha v3"', to: process.env.EMAIL_USER, subject: 'Daily Alpha Brief', text: aiText });
+        }
+        return res.status(200).send("Sent");
+    } catch (error) { return res.status(500).send("Failed"); }
 }
