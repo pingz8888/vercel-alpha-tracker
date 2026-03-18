@@ -1,1 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/dailyCron",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
 
