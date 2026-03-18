@@ -128,21 +128,42 @@
 
         async function getSingleInsight(t) {
             const box = document.getElementById(`text-${t}`);
-            box.innerHTML = '<span class="animate-pulse text-blue-500 font-black">CONSULTING AI...</span>';
+            box.innerHTML = ''; 
+            
             try {
-                const res = await fetch('/api/getInsights', { 
+                const response = await fetch('/api/getInsights', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json', 'x-app-key': key }, 
                     body: JSON.stringify({ ticker: t }) 
                 });
-                const data = await res.json();
-                const target = data.insight.match(/Target: (\d+\.?\d*)/)?.[1];
-                const stop = data.insight.match(/Stop: (\d+\.?\d*)/)?.[1];
+
+                if (!response.ok) throw new Error("Stream Failed");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+                    
+                    box.innerHTML = fullText.replace(/\[KEEP\]/g, '<span class="text-emerald-400 font-bold">KEEP</span>')
+                                            .replace(/\[SELL\]/g, '<span class="text-rose-400 font-bold">SELL</span>')
+                                            .replace(/\[WATCH\]/g, '<span class="text-blue-400 font-bold">WATCH</span>');
+                }
+
+                const target = fullText.match(/Target: (\d+\.?\d*)/)?.[1];
+                const stop = fullText.match(/Stop: (\d+\.?\d*)/)?.[1];
                 
-                cache[t] = { ...cache[t], insight: data.insight, ts: Date.now(), target: parseFloat(target), stop: parseFloat(stop) };
-                save(); render();
-                document.getElementById(`ins-${t}`).classList.remove('hidden');
-            } catch (e) { box.innerText = "Error: Timeout. Try again."; }
+                cache[t] = { ...cache[t], insight: fullText, ts: Date.now(), target: parseFloat(target), stop: parseFloat(stop) };
+                save();
+                updateAlertVisuals(t);
+            } catch (e) { 
+                box.innerText = "Error: Timeout. Tap Refresh."; 
+            }
         }
 
         function updateAlertVisuals(t) {
