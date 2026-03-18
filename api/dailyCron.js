@@ -2,8 +2,7 @@ import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    const prompt = `Recommend TWO swing trades (US/SGX). Format: [Ticker] | Target: [Price]. 1 sentence setup.`;
-
+    const prompt = `You are a veteran Singaporean hedge fund manager with 30 years experience in investments and a solid track record in generating millions of dollars from stocks investments. Recommend THREE 6-month swing trades (SGX listed). Format: [Ticker] | Entry: [Price] | Stop: [Price] | Target: [Price]. Thesis: 3 sentences.`;
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
