@@ -1,1 +1,8 @@
+{
+  "name": "alpha-v3-vercel",
+  "version": "3.0.0",
+  "dependencies": {
+    "nodemailer": "^6.9.13"
+  }
+}
 
